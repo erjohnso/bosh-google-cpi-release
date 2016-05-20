@@ -4,7 +4,7 @@ In order to deploy [Cloud Foundry](https://www.cloudfoundry.org/) on [Google Com
 
 ### Prerequisites
 
-* An existing BOSH environment
+* An existing BOSH environment, or set one up on Google Cloud Platform [here](https://github.com/cloudfoundry-incubator/bosh-google-cpi-release/blob/master/README.md)
 
 * Ensure that you have enough [Resource Quotas](https://cloud.google.com/compute/docs/resource-quotas) available:
     - 100 Cores
@@ -13,10 +13,11 @@ In order to deploy [Cloud Foundry](https://www.cloudfoundry.org/) on [Google Com
 
 ### Prepare the Google Compute Engine environment
 
-* Reserve a new [static external IP address](https://cloud.google.com/compute/docs/instances-and-network#reserve_new_static):
+* Reserve a new [static external IP address](https://cloud.google.com/compute/docs/instances-and-network#reserve_new_static) and record the IP address in an environment variable:
 
 ```
 $ gcloud compute addresses create cf
+$ export CFIP=$(gcloud compute addresses describe cf | grep ^address | sed -e "s/[a-z: ]*//")
 ```
 
 * Create the following load balancing [health checks](https://cloud.google.com/compute/docs/load-balancing/health-checks):
@@ -30,7 +31,7 @@ $ gcloud compute http-health-checks create cf-public \
   --unhealthy-threshold "2" \
   --port 80 \
   --request-path "/info" \
-  --host "api.<YOUR CF IP ADDRESS>.xip.io"
+  --host "api.${CFIP}.xip.io"
 ```
 
 * Create the following load balancing [target pools](https://cloud.google.com/compute/docs/load-balancing/network/target-pools):
@@ -49,7 +50,7 @@ $ gcloud compute forwarding-rules create cf-http \
   --ip-protocol TCP \
   --port-range 80 \
   --target-pool cf-public \
-  --address <YOUR CF IP ADDRESS>
+  --address ${CFIP}
 ```
 
 ```
@@ -58,7 +59,7 @@ $ gcloud compute forwarding-rules create cf-https \
   --ip-protocol TCP \
   --port-range 443 \
   --target-pool cf-public \
-  --address <YOUR CF IP ADDRESS>
+  --address ${CFIP}
 ```
 
 ```
@@ -67,7 +68,7 @@ $ gcloud compute forwarding-rules create cf-ssh \
   --ip-protocol TCP \
   --port-range 2222 \
   --target-pool cf-public \
-  --address <YOUR CF IP ADDRESS>
+  --address ${CFIP}
 ```
 
 ```
@@ -76,7 +77,7 @@ $ gcloud compute forwarding-rules create cf-wss \
   --ip-protocol TCP \
   --port-range 4443 \
   --target-pool cf-public \
-  --address <YOUR CF IP ADDRESS>
+  --address ${CFIP}
 ```
 
 * Create the following firewalls and [set the appropriate rules](https://cloud.google.com/compute/docs/networking#addingafirewall):
@@ -126,4 +127,4 @@ $ bosh deployment cloudfoundry.yml
 $ bosh deploy
 ```
 
-* Once deployed, you can target your Cloud Foundry environment using the [CF CLI](http://docs.cloudfoundry.org/cf-cli/). Your CF API endpoint is `https://api.<YOUR CF IP ADDRESS>.xip.io`, your username is `admin` and your password is `c1oudc0w`.
+* Once deployed, you can target your Cloud Foundry environment using the [CF CLI](http://docs.cloudfoundry.org/cf-cli/). Your CF API endpoint is `https://api.${CFIP}.xip.io`, your username is `admin` and your password is `c1oudc0w`.
